@@ -10,14 +10,16 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 def main():
-    nb = read_nubank('inbox/nubank-2022-11.csv')
-    nb2 = read_nubank('inbox/nubank-2022-12.csv')
-    bb = read_bb('inbox/bb-2022-11.csv')
+    nb = read_nubank('inbox/nubank-2023-01.csv')
+    nb2 = read_nubank('inbox/nubank-2023-02.csv')
+    bb = read_bb('inbox/bb-2023-01.csv')
     al = read_alelo('inbox/alelo-2023-01.txt')
     prev = read_gsheet('Contas Akira', '2022-11')
+    prev2 = read_gsheet('Contas Akira', '2022-12')
 
+    prev = pd.concat([prev, prev2])
     total_unfiltered = pd.concat([nb, nb2, bb, al]).fillna('')
-    total = date_filter(total_unfiltered, '2022-11-1', '2022-12-1')
+    total = date_filter(total_unfiltered, '2023-01-1', '2023-02-1')
 
     x_treino, x_teste, y_treino, y_teste, le_cat = preprocess_and_split(prev, total)
 
@@ -27,7 +29,7 @@ def main():
     dt = DecisionTreeClassifier()
     total['category2'] = classify(dt, x_treino, x_teste, y_treino, le_cat)
 
-    write_gsheet(total, 'Contas Akira', 'alelo test2')
+    write_gsheet(total, 'Contas Akira', '2023-01-raw')
 
 
 def read_nubank(filename: Path):
@@ -63,7 +65,7 @@ def read_alelo(filename: Path):
         dual_line = lines[i]+lines[i+1]
         ma = entry_match.search(dual_line)
         if ma is not None:
-            full_date = ma.group(2) + ('/2023' if ma.group(2).endswith('/01') else '/2022')
+            full_date = ma.group(2) + ('/2022' if ma.group(2).endswith('/12') else '/2023')
             dates.append(pd.to_datetime(full_date, dayfirst=True))
             descriptions.append(ma.group(1))
             value = -float(ma.group(3).replace('.', '').replace(',', '.'))
