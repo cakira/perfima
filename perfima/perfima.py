@@ -10,16 +10,17 @@ from sklearn.tree import DecisionTreeClassifier
 
 
 def main():
-    nb = read_nubank('inbox/nubank-2023-01.csv')
-    nb2 = read_nubank('inbox/nubank-2023-02.csv')
-    bb = read_bb('inbox/bb-2023-01.csv')
-    al = read_alelo('inbox/alelo-2023-01.txt')
+    nb = read_nubank('inbox/nubank-2023-02.csv')
+    nb2 = read_nubank('inbox/nubank-2023-03.csv')
+    bb = read_bb('inbox/bb-2023-02.csv')
+    al = read_alelo('inbox/alelo-2023-02.txt')
     prev = read_gsheet('Contas Akira', '2022-11')
     prev2 = read_gsheet('Contas Akira', '2022-12')
+    prev3 = read_gsheet('Contas Akira', '2023-01')
 
-    prev = pd.concat([prev, prev2])
+    prev = pd.concat([prev, prev2, prev3])
     total_unfiltered = pd.concat([nb, nb2, bb, al]).fillna('')
-    total = date_filter(total_unfiltered, '2023-01-1', '2023-02-1')
+    total = date_filter(total_unfiltered, '2023-02-1', '2023-03-1')
 
     x_treino, x_teste, y_treino, y_teste, le_cat = preprocess_and_split(prev, total)
 
@@ -29,7 +30,7 @@ def main():
     dt = DecisionTreeClassifier()
     total['category2'] = classify(dt, x_treino, x_teste, y_treino, le_cat)
 
-    write_gsheet(total, 'Contas Akira', '2023-01-raw')
+    write_gsheet(total, 'Contas Akira', '2023-02-raw')
 
 
 def read_nubank(filename: Path):
