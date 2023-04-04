@@ -21,22 +21,25 @@ def main():
     nb2 = read_nubank(f'inbox/nubank-{next_month_with_year}.csv')
     bb = read_bb(f'inbox/bb-{YEAR}-{MONTH:02}.csv')
     al = read_alelo(f'inbox/alelo-{YEAR}-{MONTH:02}.txt')
+    current_entries_unfiltered = pd.concat([nb, nb2, bb, al]).fillna('')
+    current_entries = date_filter(current_entries_unfiltered,
+                                  f'{YEAR}-{MONTH:02}-1',
+                                  f'{next_month_with_year}-1')
 
-    prev = get_previous_entries(SPREADSHEET_NAME)
-    total_unfiltered = pd.concat([nb, nb2, bb, al]).fillna('')
-    total = date_filter(total_unfiltered, f'{YEAR}-{MONTH:02}-1',
-                        f'{next_month_with_year}-1')
+    previous_entries = get_previous_entries(SPREADSHEET_NAME)
 
     x_treino, x_teste, y_treino, y_teste, le_cat = preprocess_and_split(
-        prev, total)
+        previous_entries, current_entries)
 
     knn = KNeighborsClassifier(n_neighbors=28)
-    total['category'] = classify(knn, x_treino, x_teste, y_treino, le_cat)
+    current_entries['category'] = classify(knn, x_treino, x_teste, y_treino,
+                                           le_cat)
 
     dt = DecisionTreeClassifier()
-    total['category2'] = classify(dt, x_treino, x_teste, y_treino, le_cat)
+    current_entries['category2'] = classify(dt, x_treino, x_teste, y_treino,
+                                            le_cat)
 
-    write_gsheet(total, SPREADSHEET_NAME, f'{YEAR}-{MONTH:02}-raw')
+    write_gsheet(current_entries, SPREADSHEET_NAME, f'{YEAR}-{MONTH:02}-raw')
 
 
 def read_nubank(filename: Path):
@@ -152,19 +155,19 @@ def read_gsheet(doc_name: str, sheet_name: str):
     return prev
 
 
-def date_filter(total_unfiltered, start_date: str, end_date: str):
-    total_unfiltered.insert(0, 'order', range(len(total_unfiltered)))
-    total_unfiltered = total_unfiltered.sort_values(by=['date', 'order']).drop(
-        ['order'], axis=1)
-    total = total_unfiltered[
-        (total_unfiltered['date'] >= pd.to_datetime(start_date))
-        & (total_unfiltered['date'] < pd.to_datetime(end_date))]
-    total = total.reset_index().drop(['index'], axis=1)
-    return total
+def date_filter(entries_unfiltered, start_date: str, end_date: str):
+    entries_unfiltered.insert(0, 'order', range(len(entries_unfiltered)))
+    entries_unfiltered = entries_unfiltered.sort_values(
+        by=['date', 'order']).drop(['order'], axis=1)
+    current_entries = entries_unfiltered[
+        (entries_unfiltered['date'] >= pd.to_datetime(start_date))
+        & (entries_unfiltered['date'] < pd.to_datetime(end_date))]
+    current_entries = current_entries.reset_index().drop(['index'], axis=1)
+    return current_entries
 
 
-def preprocess_and_split(prev, total):
-    prevf = pd.concat([prev, total]).fillna('')
+def preprocess_and_split(prev, current_entries):
+    prevf = pd.concat([prev, current_entries]).fillna('')
 
     prevf['wd'] = prevf['date'].dt.dayofweek
     prevf['md'] = prevf['date'].dt.day
@@ -213,7 +216,7 @@ def preprocess_and_split(prev, total):
     return x_treino, x_teste, y_treino, y_teste, le_cat
 
 
-def write_gsheet(total, doc_name: str, sheet_name: str) -> None:
+def write_gsheet(new_entries, doc_name: str, sheet_name: str) -> None:
     gspread_connector = gspread.service_account()
     spreadsheet = gspread_connector.open(doc_name)
     worksheet_list = [ws.title for ws in spreadsheet.worksheets()]
@@ -221,15 +224,15 @@ def write_gsheet(total, doc_name: str, sheet_name: str) -> None:
         worksheet = spreadsheet.worksheet(sheet_name)
     else:
         worksheet = spreadsheet.add_worksheet(title=sheet_name,
-                                              rows=len(total.index) + 1,
+                                              rows=len(new_entries.index) + 1,
                                               cols=7)
     worksheet.update('A1', [[
         'Data', 'Categoria', 'Nome', 'Valor', 'Fonte', 'Categoria Original',
         'Comentário'
     ]])
-    total['date'] = total['date'].astype(str)
+    new_entries['date'] = new_entries['date'].astype(str)
     worksheet.update('A2',
-                     total.values.tolist(),
+                     new_entries.values.tolist(),
                      value_input_option='USER_ENTERED')
 
 
