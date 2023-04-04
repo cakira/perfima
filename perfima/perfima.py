@@ -9,18 +9,24 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 
 
+SPREADSHEET_NAME = 'Contas Akira'
+YEAR = 2023
+MONTH = 3
+
 def main():
-    nb = read_nubank('inbox/nubank-2023-02.csv')
-    nb2 = read_nubank('inbox/nubank-2023-03.csv')
-    bb = read_bb('inbox/bb-2023-02.csv')
-    al = read_alelo('inbox/alelo-2023-02.txt')
-    prev = read_gsheet('Contas Akira', '2022-11')
-    prev2 = read_gsheet('Contas Akira', '2022-12')
-    prev3 = read_gsheet('Contas Akira', '2023-01')
+    next_month_with_year = f'{YEAR}-{MONTH+1:02}' if MONTH < 12 else f'{YEAR+1}-01'
+
+    nb = read_nubank(f'inbox/nubank-{YEAR}-{MONTH:02}.csv')
+    nb2 = read_nubank(f'inbox/nubank-{next_month_with_year}.csv')
+    bb = read_bb(f'inbox/bb-{YEAR}-{MONTH:02}.csv')
+    al = read_alelo(f'inbox/alelo-{YEAR}-{MONTH:02}.txt')
+    prev = read_gsheet(SPREADSHEET_NAME, '2022-11')
+    prev2 = read_gsheet(SPREADSHEET_NAME, '2022-12')
+    prev3 = read_gsheet(SPREADSHEET_NAME, '2023-01')
 
     prev = pd.concat([prev, prev2, prev3])
     total_unfiltered = pd.concat([nb, nb2, bb, al]).fillna('')
-    total = date_filter(total_unfiltered, '2023-02-1', '2023-03-1')
+    total = date_filter(total_unfiltered, f'{YEAR}-{MONTH:02}-1', f'{next_month_with_year}-1')
 
     x_treino, x_teste, y_treino, y_teste, le_cat = preprocess_and_split(prev, total)
 
@@ -30,7 +36,7 @@ def main():
     dt = DecisionTreeClassifier()
     total['category2'] = classify(dt, x_treino, x_teste, y_treino, le_cat)
 
-    write_gsheet(total, 'Contas Akira', '2023-02-raw')
+    write_gsheet(total, SPREADSHEET_NAME, f'{YEAR}-{MONTH:02}-raw')
 
 
 def read_nubank(filename: Path):
@@ -66,7 +72,7 @@ def read_alelo(filename: Path):
         dual_line = lines[i]+lines[i+1]
         ma = entry_match.search(dual_line)
         if ma is not None:
-            full_date = ma.group(2) + ('/2022' if ma.group(2).endswith('/12') else '/2023')
+            full_date = ma.group(2) + (f'/{YEAR-1}' if ma.group(2).endswith('/12') else f'/{YEAR}')
             dates.append(pd.to_datetime(full_date, dayfirst=True))
             descriptions.append(ma.group(1))
             value = -float(ma.group(3).replace('.', '').replace(',', '.'))
