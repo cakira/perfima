@@ -20,11 +20,8 @@ def main():
     nb2 = read_nubank(f'inbox/nubank-{next_month_with_year}.csv')
     bb = read_bb(f'inbox/bb-{YEAR}-{MONTH:02}.csv')
     al = read_alelo(f'inbox/alelo-{YEAR}-{MONTH:02}.txt')
-    prev = read_gsheet(SPREADSHEET_NAME, '2022-11')
-    prev2 = read_gsheet(SPREADSHEET_NAME, '2022-12')
-    prev3 = read_gsheet(SPREADSHEET_NAME, '2023-01')
 
-    prev = pd.concat([prev, prev2, prev3])
+    prev = get_previous_entries(SPREADSHEET_NAME)
     total_unfiltered = pd.concat([nb, nb2, bb, al]).fillna('')
     total = date_filter(total_unfiltered, f'{YEAR}-{MONTH:02}-1', f'{next_month_with_year}-1')
 
@@ -82,6 +79,16 @@ def read_alelo(filename: Path):
     al=pd.DataFrame(data={'date':dates, 'description':descriptions, 'value':values})
     al['source'] = 'Alelo'
     return al
+
+
+def get_previous_entries(doc_name: str):
+    gspread_connector = gspread.service_account()
+    spreadsheet = gspread_connector.open(doc_name)
+    valid_data_sheet_pattern = re.compile(r'20\d\d-[01]\d')
+    data_sheet_list = [ws.title for ws in spreadsheet.worksheets() if valid_data_sheet_pattern.fullmatch(ws.title)]
+    data_sheet_list_contents = [read_gsheet(doc_name, data_sheet) for data_sheet in data_sheet_list]
+    previous_entries = pd.concat(data_sheet_list_contents)
+    return previous_entries
 
 
 def read_gsheet(doc_name: str, sheet_name: str):
