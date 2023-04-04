@@ -83,14 +83,16 @@ def read_gsheet(doc_name: str, sheet_name: str):
     spreadsheet = gspread_connector.open(doc_name)
     prev_worksheet = spreadsheet.worksheet(sheet_name)
     prev = pd.DataFrame(prev_worksheet.get_all_records(value_render_option=['UNFORMATTED_VALUE']))
-    prev = prev.rename({'Data':'timestamp',
+    prev = prev.rename({'Data':'(timestamp)',
                         'Categoria':'category',
                         'Nome':'description',
                         'Valor':'value',
                         'Fonte':'source',
                         'Categoria Original':'original_category'}, axis='columns')
-    prev['date'] = pd.to_datetime(prev['timestamp'], unit='d', origin='1899-12-30')
-    prev.drop(['timestamp'], axis=1, inplace=True)
+    prev['date'] = pd.to_datetime(prev['(timestamp)'], unit='d', origin='1899-12-30')
+    for column_name in list(prev.keys()):
+        if column_name.startswith('('):
+            prev.drop([column_name], axis=1, inplace=True)
     prev['value'] = prev['value'].apply(lambda x: str(x).replace('R$ ','').replace('.','').replace(',','.')).astype('float')
     return prev
 
