@@ -190,15 +190,10 @@ def preprocess_and_split(prev, current_entries):
     le_desc.fit(prevf['source'].values)
     prevf['sourcef'] = le_desc.transform(prevf['source'].values)
 
-    prevf.drop(['date', 'category', 'description', 'source', 'Comentário'],
-               axis=1,
-               inplace=True)
-    prevf.drop([
-        'original_category', 'Dependencia Origem', 'Data do Balancete',
-        'Número do documento'
-    ],
-               axis=1,
-               inplace=True)
+    desired_colums = [
+        'wd', 'md', 'month', 'orcat', 'catf', 'descf', 'value', 'sourcef'
+    ]
+    prevf = prevf.filter(desired_colums)
 
     Y = prevf['catf'].values
     prevf.drop('catf', axis=1, inplace=True)
