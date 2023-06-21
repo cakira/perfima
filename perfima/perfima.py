@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 
 import gspread
+import logging
 import pandas as pd
 from sklearn import preprocessing
 from sklearn.neighbors import KNeighborsClassifier
@@ -15,6 +16,7 @@ MONTH = 3
 
 
 def main():
+    logging.basicConfig(format='%(message)s', level=logging.INFO)
     next_month_with_year = f'{YEAR}-{MONTH+1:02}' if MONTH < 12 else f'{YEAR+1}-01'
 
     nb = read_nubank(f'inbox/nubank-{YEAR}-{MONTH:02}.csv')
@@ -120,10 +122,12 @@ def get_previous_entries(doc_name: str):
         ws.title for ws in spreadsheet.worksheets()
         if valid_data_sheet_pattern.fullmatch(ws.title)
     ]
-    data_sheet_list_contents = [
-        read_gsheet(doc_name, data_sheet) for data_sheet in data_sheet_list
-    ]
-    previous_entries = pd.concat(data_sheet_list_contents)
+    total_list_contents = list()
+    for data_sheet in data_sheet_list:
+        logging.info(f'From {doc_name}, reading sheet {data_sheet}')
+        data_sheet_contents = read_gsheet(doc_name, data_sheet)
+        total_list_contents.append(data_sheet_contents)
+    previous_entries = pd.concat(total_list_contents)
     return previous_entries
 
 
@@ -216,8 +220,10 @@ def write_gsheet(new_entries, doc_name: str, sheet_name: str) -> None:
     spreadsheet = gspread_connector.open(doc_name)
     worksheet_list = [ws.title for ws in spreadsheet.worksheets()]
     if sheet_name in worksheet_list:
+        logging.info(f'Updating {sheet_name} in {doc_name}')
         worksheet = spreadsheet.worksheet(sheet_name)
     else:
+        logging.info(f'Creating {sheet_name} in {doc_name}')
         worksheet = spreadsheet.add_worksheet(title=sheet_name,
                                               rows=len(new_entries.index) + 1,
                                               cols=7)
